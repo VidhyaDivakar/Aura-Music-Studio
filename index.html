@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="manifest" href="manifest.json">
+    <title>Gemini 3 Pro - Studio App</title>
+    <style>
+        :root {
+            --primary: #00e676;
+            --bg: #0a0a0c;
+            --panel: #16161a;
+            --mix: #7c4dff;
+            --record: #ff5252;
+        }
+
+        body {
+            background: var(--bg);
+            color: #e0e0e0;
+            font-family: 'Segoe UI', sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* App Navigation */
+        nav {
+            background: #000;
+            display: flex;
+            justify-content: center;
+            border-bottom: 1px solid #333;
+            flex-shrink: 0;
+            z-index: 10;
+        }
+
+        .tab-btn {
+            padding: 20px 25px;
+            border: none;
+            background: none;
+            color: #666;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 12px;
+            letter-spacing: 1px;
+            transition: 0.3s;
+        }
+
+        .tab-btn.active {
+            color: var(--primary);
+            border-bottom: 3px solid var(--primary);
+        }
+
+        .content {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
+
+        .tab-pane {
+            display: none;
+            width: 100%;
+            max-width: 1200px;
+            animation: fadeIn 0.3s;
+        }
+
+        .tab-pane.active {
+            display: block;
+        }
+
+        /* Visualizer Canvas */
+        #visualizer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 150px;
+            z-index: 0;
+            opacity: 0.4;
+            pointer-events: none;
+        }
+
+        /* Monitor & Controls */
+        .dashboard {
+            display: flex;
+            gap: 15px;
+            width: 100%;
+            margin-bottom: 20px;
+            z-index: 2;
+        }
+
+        .monitor {
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 12px;
+            padding: 20px;
+            flex: 2;
+            text-align: center;
+            border: 1px solid #333;
+            backdrop-filter: blur(10px);
+        }
+
+        .record-panel {
+            background: rgba(26, 10, 10, 0.8);
+            border-radius: 12px;
+            padding: 20px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            border: 1px solid #441111;
+        }
+
+        #note-display {
+            font-size: 32px;
+            color: var(--primary);
+            font-weight: 800;
+        }
+
+        #ai-mood {
+            font-size: 10px;
+            color: #888;
+            letter-spacing: 1px;
+            margin-top: 5px;
+        }
+
+        #rec-btn {
+            background: var(--record);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: bold;
+            width: 100%;
+        }
+
+        #rec-btn.recording {
+            animation: pulse 1s infinite;
+            background: #fff;
+            color: #000;
+        }
+
+        /* Keyboard UI */
+        .keyboard-container {
+            background: #111;
+            padding: 30px 15px;
+            border-radius: 15px;
+            border: 5px solid #222;
+            overflow-x: auto;
+            width: 100%;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+            z-index: 2;
+        }
+
+        .keys-wrapper {
+            display: flex;
+            position: relative;
+            width: max-content;
+        }
+
+        .key {
+            cursor: pointer;
+            position: relative;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            padding-bottom: 15px;
+            font-size: 10px;
+            font-weight: bold;
+            user-select: none;
+            touch-action: none;
+            transition: 0.1s;
+            border-radius: 0 0 6px 6px;
+        }
+
+        .key.white {
+            width: 42px;
+            height: 220px;
+            background: linear-gradient(#eee, #fff 90%, #ccc);
+            color: #999;
+            border: 1px solid #bbb;
+            z-index: 1;
+        }
+
+        .key.black {
+            width: 28px;
+            height: 130px;
+            background: linear-gradient(#444, #111);
+            color: #fff;
+            margin-left: -14px;
+            margin-right: -14px;
+            z-index: 2;
+            border: 1px solid #000;
+        }
+
+        .key.active {
+            transform: translateY(4px);
+            background: var(--primary) !important;
+            color: #000 !important;
+        }
+
+        /* Mix Cards */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 15px;
+        }
+
+        .card {
+            background: var(--panel);
+            border: 1px solid #333;
+            padding: 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            border-left: 5px solid var(--mix);
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(0.95);
+            }
+
+            100% {
+                transform: scale(1);
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <nav>
+        <button class="tab-btn active" onclick="openTab(event, 'keyboard')">STUDIO</button>
+        <button class="tab-btn" onclick="openTab(event, 'samples')">SYSTEM LIBRARY</button>
+        <button class="tab-btn" onclick="openTab(event, 'mix')">USER MIX GALLERY</button>
+    </nav>
+
+    <canvas id="visualizer"></canvas>
+
+    <div class="content">
+        <div id="keyboard" class="tab-pane active">
+            <div class="dashboard">
+                <div class="monitor">
+                    <div id="note-display">Ready</div>
+                    <div id="ai-mood">AI ANALYZING HARMONICS...</div>
+                </div>
+                <div class="record-panel">
+                    <button id="rec-btn" onclick="toggleRecord()">START RECORD</button>
+                    <div id="timer" style="margin-top:10px; font-family:monospace; color:var(--record)">00:15</div>
+                </div>
+            </div>
+            <div class="keyboard-container">
+                <div class="keys-wrapper" id="piano-keys"></div>
+            </div>
+        </div>
+
+        <div id="samples" class="tab-pane">
+            <h2 style="color:var(--primary)">120+ System Presets</h2>
+            <div class="grid" id="sample-grid"></div>
+        </div>
+
+        <div id="mix" class="tab-pane">
+            <h2 style="color:var(--mix)">My User Mixes</h2>
+            <div class="grid" id="mix-grid"></div>
+        </div>
+    </div>
+
+    <script>
+        /** 1. CORE AUDIO & VISUALIZER SETUP **/
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 256;
+        const bufferLength = analyser.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+
+        const noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+        const activeOscs = {};
+        let isRecording = false;
+        let startTime = 0;
+        let sessionData = [];
+        let timerInterval;
+
+        /** 2. VISUALIZER DRAW LOOP (Hackathon Eye Candy) **/
+        const canvas = document.getElementById('visualizer');
+        const ctx = canvas.getContext('2d');
+        function drawVisualizer() {
+            requestAnimationFrame(drawVisualizer);
+            canvas.width = window.innerWidth;
+            canvas.height = 150;
+            analyser.getByteFrequencyData(dataArray);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const barWidth = (canvas.width / bufferLength) * 2.5;
+            let x = 0;
+            for (let i = 0; i < bufferLength; i++) {
+                let barHeight = dataArray[i] / 2;
+                ctx.fillStyle = `rgb(0, ${barHeight + 100}, 118)`;
+                ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
+                x += barWidth + 1;
+            }
+        }
+        drawVisualizer();
+
+        /** 3. SYNTH ENGINE **/
+        function startSound(midi, isReplay = false) {
+            if (activeOscs[midi] && !isReplay) return;
+            const freq = 440 * Math.pow(2, (midi - 69) / 12);
+            const g = audioCtx.createGain();
+            const osc = audioCtx.createOscillator();
+
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            g.gain.setValueAtTime(0, audioCtx.currentTime);
+            g.gain.linearRampToValueAtTime(0.3, audioCtx.currentTime + 0.05);
+
+            osc.connect(g); g.connect(analyser); analyser.connect(audioCtx.destination);
+            osc.start();
+
+            if (!isReplay) {
+                activeOscs[midi] = { osc, g };
+                if (isRecording) sessionData.push({ time: Date.now() - startTime, midi, type: 'on' });
+                updateAI(midi);
+            }
+            return { osc, g };
+        }
+
+        function stopSound(midi) {
+            if (activeOscs[midi]) {
+                activeOscs[midi].g.gain.setTargetAtTime(0, audioCtx.currentTime, 0.1);
+                setTimeout(() => activeOscs[midi].osc.stop(), 200);
+                delete activeOscs[midi];
+                if (isRecording) sessionData.push({ time: Date.now() - startTime, midi, type: 'off' });
+            }
+        }
+
+        function updateAI(midi) {
+            const moodDisplay = document.getElementById('ai-mood');
+            const moods = ["Cinematic", "Melancholic", "Energetic", "Ethereal", "Suspenseful", "Jazzy"];
+            moodDisplay.innerText = "AI MOOD: " + moods[midi % moods.length] + " detected";
+        }
+
+        /** 4. KEYBOARD RENDER **/
+        const piano = document.getElementById('piano-keys');
+        for (let i = 0; i < 64; i++) {
+            const midi = 36 + i;
+            const label = noteNames[midi % 12] + (Math.floor(midi / 12) - 1);
+            const key = document.createElement('div');
+            key.className = `key ${label.includes('#') ? 'black' : 'white'}`;
+            key.innerHTML = `<span>${label}</span>`;
+            key.dataset.midi = midi;
+
+            const down = (e) => {
+                e.preventDefault();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                key.classList.add('active');
+                startSound(midi);
+                document.getElementById('note-display').innerText = label;
+            };
+            const up = () => { key.classList.remove('active'); stopSound(midi); };
+
+            key.onmousedown = down; key.onmouseup = up; key.onmouseleave = up;
+            key.ontouchstart = down; key.ontouchend = up;
+            piano.appendChild(key);
+        }
+
+        /** 5. RECORD & TABS **/
+        function toggleRecord() {
+            if (!isRecording) {
+                isRecording = true; startTime = Date.now(); sessionData = [];
+                document.getElementById('rec-btn').innerText = "STOP & SAVE";
+                document.getElementById('rec-btn').classList.add('recording');
+                let t = 15;
+                timerInterval = setInterval(() => {
+                    t--; document.getElementById('timer').innerText = `00:${t < 10 ? '0' : ''}${t}`;
+                    if (t <= 0) toggleRecord();
+                }, 1000);
+            } else {
+                isRecording = false; clearInterval(timerInterval);
+                document.getElementById('rec-btn').innerText = "START RECORD";
+                document.getElementById('rec-btn').classList.remove('recording');
+                if (sessionData.length > 0) {
+                    const userMixes = JSON.parse(localStorage.getItem('gemini_v5') || '[]');
+                    userMixes.push({ name: "Session " + new Date().toLocaleTimeString(), data: sessionData });
+                    localStorage.setItem('gemini_v5', JSON.stringify(userMixes));
+                    renderMixes();
+                }
+            }
+        }
+
+        function renderMixes() {
+            const grid = document.getElementById('mix-grid');
+            const userMixes = JSON.parse(localStorage.getItem('gemini_v5') || '[]');
+            grid.innerHTML = '';
+            userMixes.forEach(m => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `<strong>${m.name}</strong><br><small>15s Recording</small>`;
+                card.onclick = () => {
+                    m.data.forEach(e => {
+                        setTimeout(() => {
+                            if (e.type === 'on') {
+                                const v = startSound(e.midi, true);
+                                const k = document.querySelector(`[data-midi="${e.midi}"]`);
+                                k?.classList.add('active');
+                                setTimeout(() => { v.g.gain.setTargetAtTime(0, audioCtx.currentTime, 0.1); k?.classList.remove('active'); }, 500);
+                            }
+                        }, e.time);
+                    });
+                };
+                grid.appendChild(card);
+            });
+        }
+
+        function openTab(e, id) {
+            document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            e.currentTarget.classList.add('active');
+        }
+
+        // Service Worker Registration
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js');
+        }
+
+        renderMixes();
+    </script>
+</body>
+
+</html>
