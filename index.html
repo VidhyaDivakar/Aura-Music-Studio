@@ -4,529 +4,90 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gemini 3 Pro - Studio Intelligence</title>
-    <style>
-        :root {
-            --ui-teal: #26C6DA;
-            --ui-amber: #FFC107;
-            --ui-slate: #78909C;
-            --bg: #0d1117;
-            --panel: rgba(22, 27, 34, 0.95);
-        }
+    <title>Studio Blue Pro - Asset Platform</title>
 
-        body {
-            background: var(--bg);
-            color: #c9d1d9;
-            font-family: 'Segoe UI', system-ui, sans-serif;
-            margin: 0;
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            overflow: hidden;
-        }
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#00A3FF">
 
-        /* Navigation */
-        nav {
-            background: #010409;
-            display: flex;
-            justify-content: center;
-            border-bottom: 1px solid #30363d;
-            z-index: 100;
-        }
-
-        .tab-btn {
-            padding: 20px 30px;
-            border: none;
-            background: none;
-            color: #8b949e;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 12px;
-            letter-spacing: 1.5px;
-            text-transform: uppercase;
-            transition: 0.3s;
-        }
-
-        .tab-btn.active {
-            color: var(--ui-teal);
-            border-bottom: 2px solid var(--ui-teal);
-        }
-
-        /* Visualizer */
-        #viz-container {
-            position: relative;
-            height: 280px;
-            background: #010409;
-            border-bottom: 1px solid #30363d;
-        }
-
-        canvas {
-            width: 100%;
-            height: 100%;
-        }
-
-        /* Studio Content */
-        .content {
-            flex: 1;
-            padding: 20px;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        .tab-pane {
-            display: none;
-            width: 100%;
-            max-width: 1200px;
-            animation: fadeIn 0.4s ease;
-        }
-
-        .tab-pane.active {
-            display: block;
-        }
-
-        /* Dashboard */
-        .dashboard {
-            display: flex;
-            gap: 20px;
-            width: 100%;
-            margin-bottom: 20px;
-        }
-
-        .monitor {
-            background: var(--panel);
-            border-radius: 8px;
-            padding: 20px;
-            flex: 2;
-            text-align: center;
-            border: 1px solid #30363d;
-        }
-
-        #note-name {
-            font-size: 32px;
-            color: var(--ui-teal);
-            font-weight: 700;
-            margin: 5px 0;
-        }
-
-        .record-panel {
-            background: rgba(255, 193, 7, 0.05);
-            border-radius: 8px;
-            padding: 20px;
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            border: 1px solid rgba(255, 193, 7, 0.2);
-        }
-
-        #rec-btn {
-            background: var(--ui-amber);
-            color: #000;
-            border: none;
-            padding: 12px 25px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: bold;
-            width: 100%;
-            text-transform: uppercase;
-        }
-
-        #rec-btn.recording {
-            animation: pulse 1s infinite;
-            background: #fff;
-        }
-
-        /* Pro Keyboard */
-        .keyboard-frame {
-            background: #010409;
-            padding: 30px 15px;
-            border-radius: 12px;
-            border: 1px solid #30363d;
-            overflow-x: auto;
-            width: 100%;
-        }
-
-        .keys-container {
-            display: flex;
-            position: relative;
-            width: max-content;
-        }
-
-        .key {
-            cursor: pointer;
-            position: relative;
-            display: flex;
-            align-items: flex-end;
-            justify-content: center;
-            padding-bottom: 15px;
-            font-size: 10px;
-            font-weight: bold;
-            user-select: none;
-            transition: 0.1s;
-            border-radius: 0 0 4px 4px;
-        }
-
-        .key.white {
-            width: 40px;
-            height: 210px;
-            background: #f0f6fc;
-            color: #8b949e;
-            border: 1px solid #d0d7de;
-            z-index: 1;
-        }
-
-        .key.black {
-            width: 26px;
-            height: 125px;
-            background: #161b22;
-            color: #fff;
-            margin-left: -13px;
-            margin-right: -13px;
-            z-index: 2;
-            border: 1px solid #010409;
-        }
-
-        .key.active {
-            background: var(--ui-teal) !important;
-            color: #000 !important;
-            transform: translateY(3px);
-        }
-
-        /* Categorized Grid */
-        .category-title {
-            color: var(--ui-slate);
-            font-size: 14px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            margin: 30px 0 15px;
-            border-left: 3px solid var(--ui-teal);
-            padding-left: 10px;
-        }
-
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-            gap: 12px;
-        }
-
-        .card {
-            background: var(--panel);
-            border: 1px solid #30363d;
-            padding: 15px;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: 0.2s;
-            border-left: 4px solid var(--ui-slate);
-        }
-
-        .card:hover {
-            border-color: var(--ui-teal);
-            background: #1c2128;
-        }
-
-        .card.playing {
-            border-left-color: var(--ui-amber);
-            background: #1c2128;
-        }
-
-        @keyframes pulse {
-            0% {
-                opacity: 1;
-            }
-
-            50% {
-                opacity: 0.5;
-            }
-
-            100% {
-                opacity: 1;
-            }
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-            }
-
-            to {
-                opacity: 1;
-            }
-        }
-    </style>
+    <!-- Dependencies: FontAwesome for Icons & Studio Styles -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
+    <!-- Header Section -->
+    <header>
+        <div class="brand">
+            <i class="fa-solid fa-guitar"></i>
+            <h2 style="margin:0">Studio <span style="color:white">Blue</span></h2>
+        </div>
+        <div class="search-box">
+            <i class="fa fa-search"></i>
+            <input type="text" id="search-box" placeholder="Search 120+ tones..." onkeyup="runSearch()">
+        </div>
+        <button id="rec-btn" onclick="handleRecording()"
+            style="background:red; color:white; border:none; padding:10px 20px; border-radius:20px; font-weight:bold; cursor:pointer;">REC</button>
+    </header>
+
+    <!-- Main Tab Navigation -->
     <nav>
-        <button class="tab-btn active" onclick="switchTab(event, 'kb-tab')">Keyboard Studio</button>
-        <button class="tab-btn" onclick="switchTab(event, 'sys-tab')">Tone Library</button>
-        <button class="tab-btn" onclick="switchTab(event, 'mix-tab')">Saved Masters</button>
+        <button class="tab-btn active" onclick="navTo(event, 'pane-studio')">Studio</button>
+        <button class="tab-btn" onclick="navTo(event, 'pane-library')">Tone Library</button>
+        <button class="tab-btn" onclick="navTo(event, 'pane-user')">User Saved Tones</button>
     </nav>
 
-    <div id="viz-container"><canvas id="canvas"></canvas></div>
+    <!-- Trending Genres Ribbon -->
+    <div class="ribbon" id="genre-ribbon">
+        <div class="genre-chip active" onclick="filterByGenre('All')">All Tones</div>
+        <div class="genre-chip" onclick="filterByGenre('Gaming Classics')">Gaming Classics</div>
+        <div class="genre-chip" onclick="filterByGenre('Viral Pop Snippets')">Viral Pop Snippets</div>
+        <div class="genre-chip" onclick="filterByGenre('ASMR & Nature')">ASMR & Nature</div>
+        <div class="genre-chip" onclick="filterByGenre('Retro & Lofi')">Retro & Lofi</div>
+        <div class="genre-chip" onclick="filterByGenre('Minimalist UI')">Minimalist UI</div>
+        <div class="genre-chip" onclick="filterByGenre('Cinematic Effects')">Cinematic Effects</div>
+    </div>
 
-    <div class="content">
-        <!-- TAB 1 -->
-        <div id="kb-tab" class="tab-pane active">
-            <div class="dashboard">
-                <div class="monitor">
-                    <div style="font-size:10px; color:var(--ui-slate); letter-spacing:2px">HARMONIC INTELLIGENCE</div>
-                    <div id="note-name">STANDBY</div>
-                </div>
-                <div class="record-panel">
-                    <button id="rec-btn" onclick="toggleRecording()">Record Performance</button>
-                    <div id="timer"
-                        style="margin-top:10px; color:var(--ui-amber); font-size: 12px; font-family:monospace">20s MAX
-                        BUFFER</div>
-                </div>
+    <!-- Main Viewport -->
+    <div class="viewport">
+        <!-- STUDIO PANE: Manual Keyboard Play -->
+        <div id="pane-studio" class="tab-pane active">
+            <div class="monitor">
+                <div id="note-display">Ready to Compose</div>
+                <div style="color:#444; font-size:12px; margin-top:10px;">64-KEY HIGH FIDELITY ENGINE</div>
             </div>
-            <div class="keyboard-frame">
-                <div class="keys-container" id="piano-keys"></div>
+            <div class="keyboard-wrap">
+                <div class="keys" id="piano-keys"></div>
             </div>
         </div>
 
-        <!-- TAB 2 -->
-        <div id="sys-tab" class="tab-pane">
-            <div id="library-content"></div>
+        <!-- LIBRARY PANE: Searchable Tone Gallery -->
+        <div id="pane-library" class="tab-pane">
+            <div class="grid" id="lib-grid"></div>
         </div>
 
-        <!-- TAB 3 -->
-        <div id="mix-tab" class="tab-pane">
-            <div class="category-title">Personal Recordings</div>
-            <div class="grid" id="mix-grid"></div>
+        <!-- USER PANE: Saved Recordings & Management -->
+        <div id="pane-user" class="tab-pane">
+            <div class="grid" id="user-grid"></div>
         </div>
     </div>
 
+    <!-- 1. Load Tone Data First -->
+    <script src="tones.js"></script>
+
+    <!-- 2. Load App Logic Second -->
+    <script src="app.js"></script>
+
+    <!-- 3. Service Worker Registration (PWA Logic) -->
     <script>
-        /** 1. AUDIO & SYNTH CORE **/
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const analyser = audioCtx.createAnalyser();
-        analyser.fftSize = 256;
-        const noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-        const activeOscs = new Map();
-        const chordSignatures = {};
-        let sampleVoices = []; // Tracking active sample notes to kill them
-        let isRecording = false, recEvents = [], recStart = 0;
-
-        function play(midi, isAuto = false) {
-            if (activeOscs.has(midi) && !isAuto) return;
-            const osc = audioCtx.createOscillator();
-            const g = audioCtx.createGain();
-
-            osc.type = 'triangle';
-            osc.frequency.setValueAtTime(440 * Math.pow(2, (midi - 69) / 12), audioCtx.currentTime);
-            g.gain.setValueAtTime(0, audioCtx.currentTime);
-            g.gain.linearRampToValueAtTime(0.25, audioCtx.currentTime + 0.04);
-
-            osc.connect(g); g.connect(analyser); analyser.connect(audioCtx.destination);
-            osc.start();
-
-            if (!isAuto) {
-                activeOscs.set(midi, { osc, g });
-                if (isRecording) recEvents.push({ time: Date.now() - recStart, midi, type: 'on' });
-                analyze();
-            }
-            return { osc, g };
-        }
-
-        function stop(midi) {
-            if (activeOscs.has(midi)) {
-                const { osc, g } = activeOscs.get(midi);
-                g.gain.setTargetAtTime(0, audioCtx.currentTime, 0.06);
-                setTimeout(() => osc.stop(), 200);
-                activeOscs.delete(midi);
-                if (isRecording) recEvents.push({ time: Date.now() - recStart, midi, type: 'off' });
-                analyze();
-            }
-        }
-
-        /** 2. RETRO VISUALIZER (CASSETTE + DISCRETE BARS) **/
-        const canvas = document.getElementById('canvas'), ctx = canvas.getContext('2d');
-        let rotation = 0;
-        function drawVisualizer() {
-            requestAnimationFrame(drawVisualizer);
-            canvas.width = window.innerWidth; canvas.height = 280;
-            const fData = new Uint8Array(analyser.frequencyBinCount);
-            analyser.getByteFrequencyData(fData);
-            const vol = fData.reduce((a, b) => a + b) / fData.length;
-
-            ctx.fillStyle = "#010409"; ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            // Discrete EQ Bars
-            const barCount = 40;
-            const barWidth = canvas.width / barCount;
-            for (let i = 0; i < barCount; i++) {
-                const h = (fData[i * 2] / 255) * 150;
-                // Blend Teal to Amber
-                ctx.fillStyle = i % 2 === 0 ? "#26C6DA" : "#FFC107";
-                ctx.globalAlpha = 0.3;
-                ctx.fillRect(i * barWidth, canvas.height - h, barWidth - 4, h);
-            }
-            ctx.globalAlpha = 1.0;
-
-            // Cassette Logic
-            const cx = canvas.width / 2, cy = 120;
-            ctx.strokeStyle = vol > 2 ? "#26C6DA" : "#30363d";
-            ctx.lineWidth = 2;
-            ctx.strokeRect(cx - 120, cy - 60, 240, 120); // Body
-
-            if (vol > 1) rotation += 0.04 + (vol / 60);
-            [cx - 55, cx + 55].forEach(x => {
-                ctx.beginPath(); ctx.arc(x, cy, 30, 0, Math.PI * 2); ctx.stroke();
-                for (let i = 0; i < 6; i++) {
-                    ctx.moveTo(x, cy);
-                    ctx.lineTo(x + Math.cos(rotation + i) * 25, cy + Math.sin(rotation + i) * 25);
-                }
-                ctx.stroke();
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('Studio Blue: Service Worker Registered'))
+                    .catch(err => console.log('Studio Blue: Service Worker Failed', err));
             });
         }
-        drawVisualizer();
-
-        /** 3. PIANO UI **/
-        const piano = document.getElementById('piano-keys');
-        for (let i = 0; i < 64; i++) {
-            const midi = 36 + i;
-            const label = noteNames[midi % 12] + (Math.floor(midi / 12) - 1);
-            const key = document.createElement('div');
-            key.className = `key ${label.includes('#') ? 'black' : 'white'}`;
-            key.innerHTML = `<span>${label}</span>`;
-            key.dataset.midi = midi;
-
-            const d = (e) => { e.preventDefault(); if (audioCtx.state === 'suspended') audioCtx.resume(); key.classList.add('active'); play(midi); };
-            const u = () => { key.classList.remove('active'); stop(midi); };
-
-            key.onmousedown = d; key.onmouseup = u; key.onmouseleave = u;
-            key.ontouchstart = d; key.ontouchend = u;
-            piano.appendChild(key);
-        }
-
-        function analyze() {
-            const active = [...activeOscs.keys()].map(n => n % 12).sort((a, b) => a - b);
-            const sig = [...new Set(active)].join(',');
-            const disp = document.getElementById('note-name');
-            if (chordSignatures[sig]) {
-                disp.innerText = chordSignatures[sig];
-                disp.style.color = "var(--ui-teal)";
-            } else {
-                disp.innerText = active.length > 0 ? "USER KEY NOTE" : "STANDBY";
-                disp.style.color = active.length > 0 ? "var(--ui-amber)" : "var(--ui-slate)";
-            }
-        }
-
-        /** 4. CATEGORIZED SAMPLE LIBRARY **/
-        const libraryData = [
-            { cat: "Communication (Message Tones - 4s)", style: "Blip", len: 4, motifs: [0, 7, 12] },
-            { cat: "Communication (Message Tones - 4s)", style: "Alert", len: 4, motifs: [0, 4, 7] },
-            { cat: "Lifestyle (Ringtones - 20s)", style: "Vibe", len: 20, motifs: [0, 4, 7, 11, 14] },
-            { cat: "Functional (Banking/Shopping - 2s)", style: "Success", len: 2, motifs: [0, 5, 12] },
-            { cat: "Functional (Banking/Shopping - 2s)", style: "Error", len: 2, motifs: [0, 1] }
-        ];
-
-        function initLibrary() {
-            const container = document.getElementById('library-content');
-            const categories = {};
-
-            libraryData.forEach(template => {
-                if (!categories[template.cat]) {
-                    const section = document.createElement('div');
-                    section.innerHTML = `<div class="category-title">${template.cat}</div><div class="grid" id="grid-${template.cat.split(' ')[0]}"></div>`;
-                    container.appendChild(section);
-                    categories[template.cat] = document.getElementById(`grid-${template.cat.split(' ')[0]}`);
-                }
-
-                // Generate 12 keys for each template
-                for (let r = 0; r < 12; r++) {
-                    const name = `${noteNames[r]} ${template.style}`;
-                    const sig = template.motifs.map(v => (r + v) % 12).sort((a, b) => a - b).join(',');
-                    chordSignatures[sig] = name;
-
-                    const card = document.createElement('div');
-                    card.className = 'card';
-                    card.innerHTML = `<strong>${name}</strong><br><small>${template.len}s Motif</small>`;
-                    card.onclick = () => playSample(r + 48, template.motifs, template.len, card);
-                    categories[template.cat].appendChild(card);
-                }
-            });
-        }
-
-        function playSample(root, motifs, seconds, cardEl) {
-            // Kill existing sample audio
-            sampleVoices.forEach(v => {
-                v.g.gain.setTargetAtTime(0, audioCtx.currentTime, 0.1);
-                setTimeout(() => v.osc.stop(), 200);
-            });
-            sampleVoices = [];
-            document.querySelectorAll('.card').forEach(c => c.classList.remove('playing'));
-            cardEl.classList.add('playing');
-
-            motifs.forEach((v, i) => {
-                setTimeout(() => {
-                    const s = play(root + v, true);
-                    sampleVoices.push(s);
-                    // Dynamic sustain based on seconds
-                    setTimeout(() => {
-                        s.g.gain.setTargetAtTime(0, audioCtx.currentTime, 0.2);
-                    }, seconds * 800);
-                }, i * 200);
-            });
-        }
-
-        /** 5. PERFORMANCE RECORDING **/
-        function toggleRecording() {
-            if (!isRecording) {
-                isRecording = true; recStart = Date.now(); recEvents = [];
-                document.getElementById('rec-btn').innerText = "SAVE PERFORMANCE";
-                document.getElementById('rec-btn').classList.add('recording');
-                setTimeout(() => { if (isRecording) toggleRecording(); }, 20000); // 20s Max
-            } else {
-                isRecording = false;
-                document.getElementById('rec-btn').innerText = "Record Performance";
-                document.getElementById('rec-btn').classList.remove('recording');
-                if (recEvents.length > 0) {
-                    const saved = JSON.parse(localStorage.getItem('studio_masters') || '[]');
-                    saved.push({ id: new Date().getTime(), data: recEvents });
-                    localStorage.setItem('studio_masters', JSON.stringify(saved));
-                    renderMixes();
-                }
-            }
-        }
-
-        function renderMixes() {
-            const grid = document.getElementById('mix-grid');
-            const saved = JSON.parse(localStorage.getItem('studio_masters') || '[]');
-            grid.innerHTML = saved.length === 0 ? '<p style="color:#444; padding:20px;">No master recordings found.</p>' : '';
-            saved.forEach(mix => {
-                const card = document.createElement('div');
-                card.className = 'card';
-                card.innerHTML = `<strong>Session #${mix.id.toString().slice(-4)}</strong><br><small>Studio Master</small>`;
-                card.onclick = () => {
-                    const replayVoices = {};
-                    mix.data.forEach(e => {
-                        setTimeout(() => {
-                            if (e.type === 'on') {
-                                const v = play(e.midi, true); replayVoices[e.midi] = v;
-                                document.querySelector(`[data-midi="${e.midi}"]`)?.classList.add('active');
-                            } else if (replayVoices[e.midi]) {
-                                replayVoices[e.midi].g.gain.setTargetAtTime(0, audioCtx.currentTime, 0.1);
-                                document.querySelector(`[data-midi="${e.midi}"]`)?.classList.remove('active');
-                            }
-                        }, e.time);
-                    });
-                };
-                grid.appendChild(card);
-            });
-        }
-
-        function switchTab(e, id) {
-            document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById(id).classList.add('active'); e.currentTarget.classList.add('active');
-        }
-
-        initLibrary();
-        renderMixes();
     </script>
 </body>
 
