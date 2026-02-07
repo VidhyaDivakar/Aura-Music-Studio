@@ -32,7 +32,12 @@ const toneLibrary = [
     { name: "Stranger Things", genre: "Cinematic Effects", icon: "fa-ghost", color: "#E50914", motif: [0, 4, 7, 11, 12, 11, 7, 4], dur: 2 },
     { name: "Mission Impossible", genre: "Cinematic Effects", icon: "fa-user-secret", color: "#000", motif: [0, 0, 3, 5, 0, 0, -2, -1], dur: 2 },
     { name: "Shape of You", genre: "Viral Pop Snippets", icon: "fa-shapes", color: "#2196F3", motif: [4, 6, 4, 6, 4, 1, -1], dur: 3 },
-    { name: "Bad Guy - Billie", genre: "Viral Pop Snippets", icon: "fa-mask", color: "#BADA55", motif: [0, 0, 12, 7, 6, 5, 3], dur: 2 },
+    {
+        name: "Bad Guy - Billie",
+        genre: "Viral Pop Snippets",
+        icon: "fa-mask", color: "#BADA55",
+        motif: [0, 0, 3, 5, 0, 0, 6, 5, 3], dur: 2
+    }
     { name: "Star Wars Theme", genre: "Cinematic Effects", icon: "fa-jedi", color: "#FFC107", motif: [0, 7, 5, 4, 2, 12, 7], dur: 4 }
 ];
 
@@ -54,3 +59,22 @@ for (let i = 1; i <= 90; i++) {
         dur: i % 5 === 0 ? 10 : 3 // Some ringtones, some blips
     });
 }
+const manualData = [
+    { head: "The Vision", body: "Aura Studio is where 'happy accidents' become permanent assets. Discover unique signatures in every click.", color: "green" },
+    { head: "PWA Power", body: "Install this app on your phone! It works offline and saves all your tones to local memory.", color: "yellow" },
+    { head: "Composition", body: "Play a melody. Hit REC. Your performance is now an archived tone in your gallery.", color: "yellow" },
+    { head: "Integration", body: "Export your tones, share them via WhatsApp, or use them as UI notifications for your next app project.", color: "green" }
+];
+
+function renderManual() {
+    const board = document.getElementById('manual-board');
+    if (!board) return;
+    board.innerHTML = manualData.map(m => `
+        <div class="sticky-note ${m.color}" onclick="this.classList.toggle('expanded')">
+            <div class="pin"></div>
+            <h3 class="note-heading">${m.head}</h3>
+            <p class="note-content">${m.body}</p>
+        </div>
+    `).join('');
+}
+renderManual();

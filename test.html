@@ -1,0 +1,36 @@
+<button onclick="playBadGuy()"
+    style="padding:20px; font-size:20px; cursor:pointer; background:#BADA55; border:none; border-radius:10px;">
+    ▶ Click to Preview "Bad Guy" Tone
+</button>
+
+<script>
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const motif = [0, 0, 3, 5, 0, 0, 6, 5, 3]; // The Billie Eilish Logic
+
+    function playBadGuy() {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        motif.forEach((note, i) => {
+            setTimeout(() => {
+                const osc = audioCtx.createOscillator();
+                const g = audioCtx.createGain();
+
+                // We use a Square wave for Billie Eilish because it sounds like a bass synth
+                osc.type = 'square';
+
+                // Frequency calculation starting from a low G (Midi 43)
+                osc.frequency.setValueAtTime(440 * Math.pow(2, ((43 + note) - 69) / 12), audioCtx.currentTime);
+
+                g.gain.setValueAtTime(0, audioCtx.currentTime);
+                g.gain.linearRampToValueAtTime(0.2, audioCtx.currentTime + 0.02);
+                g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+
+                osc.connect(g);
+                g.connect(audioCtx.destination);
+
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.5);
+            }, i * 180); // The timing of the bass hook
+        });
+    }
+</script>
