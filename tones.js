@@ -37,7 +37,7 @@ const toneLibrary = [
         genre: "Viral Pop Snippets",
         icon: "fa-mask", color: "#BADA55",
         motif: [0, 0, 3, 5, 0, 0, 6, 5, 3], dur: 2
-    }
+    },
     { name: "Star Wars Theme", genre: "Cinematic Effects", icon: "fa-jedi", color: "#FFC107", motif: [0, 7, 5, 4, 2, 12, 7], dur: 4 }
 ];
 
