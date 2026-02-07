@@ -7,7 +7,8 @@
     <title>Studio Blue Pro</title>
     <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
+    <link rel="icon" type="image/svg+xml"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2280%22>🎸</text><text x=%2230%22 y=%22.9em%22 font-size=%2270%22>🥁</text></svg>">
     <style>
         /* --- ALL CSS STYLES INTEGRATED HERE --- */
         @import url('https://fonts.googleapis.com/css2?family=Indie+Flower&family=Inter:wght@400;900&display=swap');
@@ -367,15 +368,20 @@
 <body>
 
     <header>
-        <div class="brand"><i class="fa-solid fa-guitar"></i>
-            <h2 style="margin:0">Studio <span style="color:white">Blue</span></h2>
+        <!-- Clickable Brand: Aura Studio -->
+        <div class="brand" onclick="window.location.reload()" style="cursor:pointer">
+            <i class="fa-solid fa-guitar"></i>
+            <h2 style="margin:0">Aura <span style="color:white">Studio</span></h2>
         </div>
-        <div class="search-box"><i class="fa fa-search"></i><input type="text" id="search-box"
-                placeholder="Search 120+ tones..." onkeyup="runSearch()"></div>
+        <div class="search-box">
+            <i class="fa fa-search"></i>
+            <input type="text" id="search-box" placeholder="Search 120+ tones..." onkeyup="runSearch()">
+        </div>
         <button id="rec-btn" onclick="handleRecording()"
             style="background:red; color:white; border:none; padding:10px 20px; border-radius:20px; font-weight:bold; cursor:pointer;">REC</button>
     </header>
 
+    <!-- Move Nav here (Outside of viewport) -->
     <nav>
         <button class="tab-btn active" onclick="navTo(event, 'pane-studio')">Studio</button>
         <button class="tab-btn" onclick="navTo(event, 'pane-library')">Library</button>
@@ -391,6 +397,13 @@
         <div class="genre-chip" onclick="filterByGenre('Minimalist UI')">UI & Apps</div>
     </div>
 
+    <div class="welcome-box"
+        style="background: rgba(0, 163, 255, 0.1); border: 1px dashed var(--studio-blue); padding: 20px; border-radius: 12px; margin-bottom: 20px; text-align: center;">
+        <h3 style="margin:0 0 10px 0; color:var(--studio-blue)">Design your own signature keyboard sound.</h3>
+        <p style="margin:0; color:#888; font-size:14px;">Use the keys below to compose. Click the <strong
+                style="color:red">REC</strong> button to start. Your creations will appear in the <strong>User
+                Tones</strong> tab automatically.</p>
+    </div>
     <div class="viewport">
         <div id="pane-studio" class="tab-pane active">
             <div class="monitor">
