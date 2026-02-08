@@ -123,17 +123,32 @@ function togglePauseRec() {
 }
 
 // --- 4. PLAYBACK ---
-function playAsset(motif, dur) {
+let activeAssetId = null; // New global variable at the top
+
+function playAsset(motif, dur, assetId) {
     if (audioCtx.state === 'suspended') audioCtx.resume();
-    sampleVoices.forEach(v => { try { v.g.gain.setTargetAtTime(0, audioCtx.currentTime, 0.05); v.osc.stop(); } catch (e) { } });
-    sampleVoices = [];
+    const btn = document.getElementById(`play-lib-${assetId}`);
+
+    if (activeAssetId === assetId) {
+        activeAssetId = null; btn.innerHTML = '<i class="fa fa-play"></i>';
+        sampleVoices.forEach(v => { try { v.g.gain.setTargetAtTime(0, audioCtx.currentTime, 0.1); v.osc.stop(); } catch (e) { } });
+        return;
+    }
+
+    activeAssetId = assetId;
+    btn.innerHTML = '<i class="fa fa-pause"></i>';
+
     motif.forEach((v, i) => {
         setTimeout(() => {
-            const s = playNote(55 + v, true, 0.5); sampleVoices.push(s);
-            const k = document.querySelector(`[data-midi="${55 + v}"]`);
-            if (k) { k.classList.add('active'); setTimeout(() => k.classList.remove('active'), 150); }
+            if (activeAssetId !== assetId) return;
+            const s = playNote(55 + v, true, 0.5);
+            sampleVoices.push(s);
         }, i * 200);
     });
+
+    setTimeout(() => {
+        if (activeAssetId === assetId) { activeAssetId = null; btn.innerHTML = '<i class="fa fa-play"></i>'; }
+    }, motif.length * 200 + 500);
 }
 
 function playArchived(id) {
@@ -222,12 +237,22 @@ async function callGemini(prompt) {
 
 async function analyzeWithAI(id, midiArray) {
     const report = document.getElementById(`ai-report-${id}`);
-    if (!midiArray.length) { report.innerText = "AI: No notes to play."; return; }
+    const titleEl = document.querySelector(`#card-title-${id}`); // We'll add this ID in renderUser
 
-    report.innerText = "AI thinking...";
+    report.innerText = "AI is vibe-checking...";
     const names = midiArray.map(m => noteNames[m % 12]).join(', ');
-    const res = await callGemini(`Analyze these notes: [${names}]. In 10 words, tell me the chord name and the mood.`);
-    if (res) report.innerText = "AI: " + res;
+
+    // Updated Prompt for Trendy Name + Analysis
+    const prompt = `Act as a trendy music curator. I played these notes: [${names}]. 
+    Give me a 2-word trendy name (like 'Neon Pulse' or 'Midnight Lo-fi') and a 10-word mood analysis. 
+    Format your response exactly like this: Name: [Your Name] | Analysis: [Your Analysis]`;
+
+    const res = await callGemini(prompt);
+    if (res && res.includes('|')) {
+        const [newName, analysis] = res.split('|');
+        titleEl.innerText = newName.replace('Name:', '').trim();
+        report.innerText = analysis.replace('Analysis:', '').trim();
+    }
 }
 
 async function generateAITone() {
@@ -277,10 +302,17 @@ function renderLibrary(s = "", g = "All") {
     const grid = document.getElementById('lib-grid'); if (!grid) return; grid.innerHTML = '';
     toneLibrary.filter(t => t.name.toLowerCase().includes(s.toLowerCase()) && (g === "All" || t.genre === g)).forEach(tone => {
         const card = document.createElement('div'); card.className = 'tone-card';
-        card.innerHTML = `<div class="card-top"><h4>${tone.name}</h4><small>${tone.genre}</small></div>
-            <div class="actions"><button class="tool-btn" onclick="shareMe('${tone.name}')"><i class="fa fa-share-nodes"></i> Share</button>
-            <button class="play-btn" onclick="playAsset(${JSON.stringify(tone.motif)}, ${tone.dur})"><i class="fa fa-play"></i></button></div>`;
-        grid.appendChild(card);
+        card.innerHTML = `
+    <div class="card-top" style="border-bottom: 3px solid ${tone.color}">
+        <div class="card-icon" style="background:${tone.color}"><i class="fa ${tone.icon}"></i></div>
+        <div><h4>${tone.name}</h4><small>${tone.genre}</small></div>
+    </div>
+    <div class="actions">
+        <button class="tool-btn" onclick="shareMe('${tone.name}')"><i class="fa fa-share-nodes"></i></button>
+        <button class="play-btn" id="play-lib-${tone.name.replace(/\s+/g, '')}" onclick="playAsset(${JSON.stringify(tone.motif)}, ${tone.dur}, '${tone.name.replace(/\s+/g, '')}')">
+            <i class="fa fa-play"></i>
+        </button>
+    </div>`;
     });
 }
 
