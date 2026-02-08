@@ -120,16 +120,45 @@ function playArchived(id) {
 }
 
 // --- 5. GEMINI AI ---
+// --- 6. GEMINI 3 API INTEGRATION (UPDATED FOR YOUR KEY) ---
+
 async function callGemini(prompt) {
-    if (!GEMINI_API_KEY) { alert("Add API Key in Settings!"); return null; }
-    // Fix: v1beta/models/gemini-1.5-flash is the correct stable path
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+    if (!GEMINI_API_KEY) {
+        alert("Click the Cog icon to set your API Key!");
+        return null;
+    }
+
+    // UPDATED: Using 'gemini-2.0-flash' which is the most stable high-speed model in your list
+    // OR change 'gemini-2.0-flash' to 'gemini-3-flash-preview' if you want the experimental Gemini 3!
+    const modelName = "gemini-2.0-flash";
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${GEMINI_API_KEY}`;
+
     try {
-        const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }) });
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }]
+            })
+        });
+
         const data = await response.json();
-        if (!response.ok) return "Error: " + data.error.message;
-        return data.candidates[0].content.parts[0].text;
-    } catch (e) { return "Connection error."; }
+
+        if (!response.ok) {
+            console.error("Gemini Error:", data);
+            return "Error: " + (data.error ? data.error.message : "Check console");
+        }
+
+        if (data.candidates && data.candidates[0].content) {
+            return data.candidates[0].content.parts[0].text;
+        } else {
+            return "AI returned an empty response. Try again.";
+        }
+
+    } catch (e) {
+        console.error("Network Error:", e);
+        return "Connection error. Check your internet.";
+    }
 }
 
 async function analyzeWithAI(id, midiArray) {

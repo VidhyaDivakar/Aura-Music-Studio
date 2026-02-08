@@ -137,6 +137,29 @@
             overflow-y: auto;
         }
 
+        .ribbon {
+            background: #080A0C;
+            padding: 15px;
+            display: flex;
+            /* Forces them to be in a row */
+            gap: 10px;
+            overflow-x: auto;
+            /* Allows scrolling on mobile */
+            white-space: nowrap;
+            justify-content: center;
+            /* Centers them on desktop */
+        }
+
+        .genre-chip {
+            display: inline-block;
+            padding: 8px 18px;
+            background: #161B22;
+            border-radius: 20px;
+            font-size: 11px;
+            cursor: pointer;
+            border: 1px solid #333;
+        }
+
         .tab-pane {
             display: none;
             width: 100%;
@@ -417,7 +440,8 @@
             <div class="welcome-box">
                 <h3>Design your own signature sound.</h3>
                 <p>Play the keys. Click <strong style="color:red">REC</strong> to start. Saved files appear in
-                    <strong>User Tones</strong>.</p>
+                    <strong>User Tones</strong>.
+                </p>
             </div>
             <div class="monitor">
                 <div id="note-display">Ready</div>
