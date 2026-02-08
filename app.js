@@ -115,19 +115,57 @@ function renderUser() {
 }
 
 function playArchived(id, data) {
+    // 1. WAKE UP AUDIO
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+
     const btn = document.getElementById(`play-user-${id}`);
-    if (activePlaybackId === id) { activePlaybackId = null; btn.innerHTML = '<i class="fa fa-play"></i>'; return; }
-    activePlaybackId = id; btn.innerHTML = '<i class="fa fa-pause"></i>';
+
+    // 2. TOGGLE LOGIC: If already playing, stop everything
+    if (activePlaybackId === id) {
+        activePlaybackId = null;
+        btn.innerHTML = '<i class="fa fa-play"></i>';
+        // Stop any sounds that were just triggered
+        sampleVoices.forEach(v => {
+            try { v.g.gain.setTargetAtTime(0, audioCtx.currentTime, 0.1); v.osc.stop(audioCtx.currentTime + 0.2); } catch (e) { }
+        });
+        return;
+    }
+
+    // 3. START PLAYBACK
+    activePlaybackId = id;
+    btn.innerHTML = '<i class="fa fa-pause"></i>';
+
+    // Track when this specific playback session started
+    const playbackStartTime = Date.now();
+
     data.forEach(e => {
         setTimeout(() => {
+            // Safety: If the user clicked "Pause" or another song, don't play the rest of the notes
             if (activePlaybackId !== id) return;
+
             if (e.type === 'on') {
-                playNote(e.midi, true, 1.2);
+                // We play the note and store it in sampleVoices so we can kill it if the user hits Pause
+                const s = playNote(e.midi, true, 1.2);
+                sampleVoices.push(s);
+
+                // Visual feedback: Light up the keys on the keyboard
                 const k = document.querySelector(`[data-midi="${e.midi}"]`);
-                if (k) { k.classList.add('active'); setTimeout(() => k.classList.remove('active'), 200); }
+                if (k) {
+                    k.classList.add('active');
+                    setTimeout(() => k.classList.remove('active'), 250);
+                }
             }
         }, e.time);
     });
+
+    // 4. AUTO-RESET BUTTON: When the recording finishes, change icon back to Play
+    const lastEventTime = data.length > 0 ? data[data.length - 1].time : 0;
+    setTimeout(() => {
+        if (activePlaybackId === id) {
+            activePlaybackId = null;
+            btn.innerHTML = '<i class="fa fa-play"></i>';
+        }
+    }, lastEventTime + 1500);
 }
 
 function delUser(id) {
@@ -136,32 +174,88 @@ function delUser(id) {
     renderUser();
 }
 
-// --- GEMINI AI INTEGRATION ---
+// --- 6. BULLTETPROOF GEMINI API INTEGRATION ---
+
 async function callGemini(prompt) {
-    if (!GEMINI_API_KEY) { alert("Click the Cog icon to set your API Key!"); return null; }
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-    const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }) });
-    const data = await response.json();
-    return data.candidates[0].content.parts[0].text;
+    if (!GEMINI_API_KEY) {
+        alert("Please set your Gemini API Key in Settings (Cog Icon)!");
+        return null;
+    }
+
+    // UPDATED: More stable endpoint
+    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }]
+            })
+        });
+
+        const data = await response.json();
+
+        // 1. Check for API errors (Invalid Key, etc)
+        if (!response.ok) {
+            console.error("Gemini Error Object:", data);
+            return "Error: " + (data.error ? data.error.message : "Server 404");
+        }
+
+        // 2. Check if the response exists and has content
+        if (data.candidates && data.candidates[0].content && data.candidates[0].content.parts) {
+            return data.candidates[0].content.parts[0].text;
+        } else {
+            return "AI returned an empty response. Try again.";
+        }
+
+    } catch (e) {
+        console.error("Network Exception:", e);
+        return "Network error. Check connection.";
+    }
 }
 
 async function analyzeWithAI(id, midiArray) {
-    const report = document.getElementById(`ai-report-${id}`); report.innerText = "AI thinking...";
-    const names = midiArray.map(m => noteNames[m % 12]).join(', ');
-    const res = await callGemini(`Act as a producer. These notes: [${names}]. In 10 words, name the chord and mood.`);
-    if (res) report.innerText = "AI: " + res;
+    const reportEl = document.getElementById(`ai-report-${id}`);
+    if (!midiArray || midiArray.length === 0) {
+        reportEl.innerText = "AI: No notes recorded.";
+        return;
+    }
+
+    reportEl.innerText = "AI is thinking...";
+    const noteNamesStr = midiArray.map(m => noteNames[m % 12]).join(', ');
+
+    const prompt = `You are a music producer. I played these notes: [${noteNamesStr}]. 
+    In exactly 10 words, name the chord and describe its mood.`;
+
+    const result = await callGemini(prompt);
+    if (result) reportEl.innerText = "AI: " + result;
 }
 
 async function generateAITone() {
-    const vibe = document.getElementById('vibe-input').value;
-    if (!vibe) return;
-    const res = await callGemini(`Translate: "${vibe}" into motif. Return ONLY a JSON array of 5 MIDI offsets (e.g. [0, 4, 7, 11, 12]).`);
-    try { const motif = JSON.parse(res.trim()); playAsset(motif, 3); } catch (e) { alert("AI error. Try another vibe!"); }
-}
+    const vibeInput = document.getElementById('vibe-input');
+    const vibe = vibeInput.value;
+    if (!vibe) return alert("Please type a vibe first!");
 
-function openSettings() {
-    const key = prompt("Enter Gemini API Key:", GEMINI_API_KEY);
-    if (key) { GEMINI_API_KEY = key; localStorage.setItem('gemini_key', key); }
+    document.getElementById('note-display').innerText = "AI is composing...";
+
+    const prompt = `Translate this vibe: "${vibe}" into a short musical motif. 
+    Return ONLY a JSON array of 5 MIDI numbers (offsets from 0). 
+    Do not use markdown. Example: [0, 4, 7, 11, 12]`;
+
+    const response = await callGemini(prompt);
+    if (!response) return;
+
+    try {
+        // CLEANER: Remove markdown backticks if AI adds them
+        const cleanJson = response.replace(/```json/g, "").replace(/```/g, "").trim();
+        const motif = JSON.parse(cleanJson);
+        playAsset(motif, 3);
+        document.getElementById('note-display').innerText = "AI Vibe: " + vibe;
+    } catch (e) {
+        console.error("Parsing Error:", response);
+        document.getElementById('note-display').innerText = "AI Format Error. Try again!";
+    }
 }
 
 // --- NAVIGATION ---
