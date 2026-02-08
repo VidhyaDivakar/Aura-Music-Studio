@@ -138,30 +138,46 @@ function playAsset(motif, dur) {
     });
 }
 
-function playArchived(id, data) {
+function playArchived(id) {
     if (audioCtx.state === 'suspended') audioCtx.resume();
+
+    // Find the data in storage instead of getting it from the button
+    const saved = JSON.parse(localStorage.getItem('sb_pro_v4') || '[]');
+    const mix = saved.find(m => m.id === id);
+    if (!mix) return;
+
     const btn = document.getElementById(`play-user-${id}`);
 
     if (activePlaybackId === id) {
-        activePlaybackId = null; btn.innerHTML = '<i class="fa fa-play"></i>';
+        activePlaybackId = null;
+        btn.innerHTML = '<i class="fa fa-play"></i>';
+        // Stop any currently playing sounds
         sampleVoices.forEach(v => { try { v.g.gain.setTargetAtTime(0, audioCtx.currentTime, 0.1); v.osc.stop(); } catch (e) { } });
         return;
     }
 
-    activePlaybackId = id; btn.innerHTML = '<i class="fa fa-pause"></i>';
-    data.forEach(e => {
+    activePlaybackId = id;
+    btn.innerHTML = '<i class="fa fa-pause"></i>';
+
+    mix.data.forEach(e => {
         setTimeout(() => {
             if (activePlaybackId !== id) return;
             if (e.type === 'on') {
-                const s = playNote(e.midi, true, 1.2); sampleVoices.push(s);
+                const s = playNote(e.midi, true, 1.2);
+                sampleVoices.push(s);
                 const k = document.querySelector(`[data-midi="${e.midi}"]`);
                 if (k) { k.classList.add('active'); setTimeout(() => k.classList.remove('active'), 200); }
             }
         }, e.time);
     });
 
-    const lastTime = data.length > 0 ? data[data.length - 1].time : 0;
-    setTimeout(() => { if (activePlaybackId === id) { activePlaybackId = null; btn.innerHTML = '<i class="fa fa-play"></i>'; } }, lastTime + 1000);
+    const lastTime = mix.data.length > 0 ? mix.data[mix.data.length - 1].time : 0;
+    setTimeout(() => {
+        if (activePlaybackId === id) {
+            activePlaybackId = null;
+            btn.innerHTML = '<i class="fa fa-play"></i>';
+        }
+    }, lastTime + 1000);
 }
 
 // --- 5. UI RENDERING ---
@@ -179,17 +195,25 @@ function renderLibrary(s = "", g = "All") {
 }
 
 function renderUser() {
-    const grid = document.getElementById('user-grid'); if (!grid) return;
+    const grid = document.getElementById('user-grid');
+    if (!grid) return;
     const saved = JSON.parse(localStorage.getItem('sb_pro_v4') || '[]');
     grid.innerHTML = saved.length === 0 ? '<p style="color:#333; padding:20px;">No sessions archived.</p>' : '';
+
     saved.forEach(mix => {
-        const midiList = [...new Set(mix.data.filter(e => e.type === 'on').map(e => e.midi))];
-        const card = document.createElement('div'); card.className = 'tone-card';
-        card.innerHTML = `<div class="card-top"><div class="card-icon" style="background:#333"><i class="fa fa-microphone"></i></div><div><h4>${mix.name}</h4><small id="ai-report-${mix.id}" style="color:var(--studio-blue); font-style:italic;">No analysis yet.</small></div></div>
+        const card = document.createElement('div');
+        card.className = 'tone-card';
+        // We only pass the ID now, not the whole music data
+        card.innerHTML = `
+            <div class="card-top">
+                <div class="card-icon" style="background:#333"><i class="fa fa-microphone"></i></div>
+                <div><h4>${mix.name}</h4><small id="ai-report-${mix.id}" style="color:var(--studio-blue)">No AI report.</small></div>
+            </div>
             <div class="actions">
-                <button class="tool-btn" style="color:#ff5252" onclick="delUser(${mix.id})"><i class="fa fa-trash"></i></button>
-                <button class="tool-btn" style="color:var(--studio-blue)" onclick="analyzeWithAI(${mix.id}, [${midiList}])"><i class="fa fa-robot"></i> AI</button>
-                <button class="play-btn" id="play-user-${mix.id}" onclick="playArchived(${mix.id}, ${JSON.stringify(mix.data)})"><i class="fa fa-play"></i></button>
+                <button class="tool-btn" onclick="delUser(${mix.id})"><i class="fa fa-trash"></i></button>
+                <button class="play-btn" id="play-user-${mix.id}" onclick="playArchived(${mix.id})">
+                    <i class="fa fa-play"></i>
+                </button>
             </div>`;
         grid.appendChild(card);
     });
@@ -204,7 +228,7 @@ function delUser(id) {
 // --- 6. GEMINI 3 API (v1beta) ---
 async function callGemini(prompt) {
     if (!GEMINI_API_KEY) { alert("Click the Cog icon to set your API Key!"); return null; }
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
     try {
         const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }) });
         const data = await response.json();
