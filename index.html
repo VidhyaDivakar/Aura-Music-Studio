@@ -179,6 +179,8 @@
             display: flex;
             position: relative;
             width: max-content;
+            border-left: 1px solid #bbb;
+            /* Adds the very first line on the far left */
         }
 
         .key {
@@ -199,8 +201,13 @@
             width: 42px;
             height: 210px;
             background: #fff;
-            border: 1px solid #ddd;
+            border: 1px solid #bbb;
+            /* Darker grey (#bbb) for better visibility than #ddd */
+            border-left: none;
+            /* Removes the left border so lines don't double up */
             color: #999;
+            box-sizing: border-box;
+            /* Crucial: keeps the border inside the 42px width */
         }
 
         .key.black {
@@ -224,10 +231,26 @@
         .key-hint {
             position: absolute;
             top: 10px;
+            width: 100%;
+            text-align: center;
             font-size: 10px;
             font-weight: 800;
-            color: var(--studio-blue);
-            opacity: 0.5;
+            opacity: 0.7;
+            pointer-events: none;
+        }
+
+        /* BLACK hints for WHITE keys */
+        .key.white .key-hint {
+            color: #000;
+            /* Solid Black */
+        }
+
+        /* WHITE hints for BLACK keys */
+        .key.black .key-hint {
+            color: #fff;
+            /* Solid White for contrast */
+            top: 5px;
+            /* Move up slightly for black keys */
         }
 
         /* NEON GLOW FOR AI MAGIC */
