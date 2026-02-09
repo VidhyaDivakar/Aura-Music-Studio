@@ -197,6 +197,15 @@ function renderAIAssets() {
         grid.appendChild(card);
     });
 }
+function shareMe(name) {
+    const text = `Check out this unique "${name}" sound asset I created on Aura Studio Pro!`;
+    if (navigator.share) {
+        navigator.share({ title: 'Aura Studio', text: text, url: window.location.href });
+    } else {
+        const fallback = `https://api.whatsapp.com/send?text=${encodeURIComponent(text + " " + window.location.href)}`;
+        window.open(fallback, '_blank');
+    }
+}
 
 function init() {
     renderUser();
