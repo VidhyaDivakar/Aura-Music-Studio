@@ -1,28 +1,83 @@
+/**
+ * AURA STUDIO PRO - CORE ENGINE
+ * Combined: High-Fidelity Audio, Computer Keyboard Mapping, Long-Press Sustain, 
+ * 15s Recording Timer, & Gemini 1.5 Flash AI Integration.
+ */
+
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 const noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 const activeOscs = new Map();
 let sampleVoices = [];
-let isRecording = false, isPaused = false, recStart = 0, totalPausedTime = 0, pauseStartTime = 0, recData = [], activePlaybackId = null, recInterval = null;
 
+// App State
+let isRecording = false;
+let isPaused = false;
+let recStart = 0;
+let totalPausedTime = 0;
+let pauseStartTime = 0;
+let recData = [];
+let activePlaybackId = null;
+let activeAssetId = null; // For Library playback tracking
+let recInterval = null;
+
+// AI State
 let GEMINI_API_KEY = localStorage.getItem('gemini_key') || "";
 
-// --- 1. CORE AUDIO ---
+// --- 1. COMPUTER KEYBOARD MAPPING ---
+const keyMap = {
+    'a': 60, 'w': 61, 's': 62, 'e': 63, 'd': 64, 'f': 65, 't': 66, 'g': 67, 'y': 68, 'h': 69, 'u': 70, 'j': 71, 'k': 72
+};
+
+window.addEventListener('keydown', (e) => {
+    if (document.activeElement.tagName === 'INPUT') return; // Don't play while typing in search
+    if (e.repeat) return;
+    const midi = keyMap[e.key.toLowerCase()];
+    if (midi) {
+        const keyEl = document.querySelector(`[data-midi="${midi}"]`);
+        if (keyEl) keyEl.classList.add('active');
+        playNote(midi);
+        document.getElementById('note-display').innerText = noteNames[midi % 12] + (Math.floor(midi / 12) - 1);
+    }
+});
+
+window.addEventListener('keyup', (e) => {
+    const midi = keyMap[e.key.toLowerCase()];
+    if (midi) {
+        const keyEl = document.querySelector(`[data-midi="${midi}"]`);
+        if (keyEl) keyEl.classList.remove('active');
+        stopNote(midi);
+    }
+});
+
+// --- 2. AUDIO ENGINE (LONG PRESS / SUSTAIN) ---
 function playNote(midi, isAuto = false, dur = 1.5) {
     if (audioCtx.state === 'suspended') audioCtx.resume();
     if (activeOscs.has(midi) && !isAuto) return;
+
+    const freq = 440 * Math.pow(2, (midi - 69) / 12);
     const osc = audioCtx.createOscillator(), g = audioCtx.createGain();
+
     osc.type = 'triangle';
-    osc.frequency.setValueAtTime(440 * Math.pow(2, (midi - 69) / 12), audioCtx.currentTime);
+    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+
     g.gain.setValueAtTime(0, audioCtx.currentTime);
-    g.gain.linearRampToValueAtTime(0.25, audioCtx.currentTime + 0.05);
+    g.gain.linearRampToValueAtTime(0.3, audioCtx.currentTime + 0.05); // Smooth Attack
+
     osc.connect(g); g.connect(audioCtx.destination);
     osc.start();
 
     if (!isAuto) {
+        // MANUAL PLAY: Sound stays ON until stopNote is called (Long Press)
         activeOscs.set(midi, { osc, g });
-        if (isRecording && !isPaused) recData.push({ time: Date.now() - recStart - totalPausedTime, midi: midi, type: 'on' });
+        if (isRecording && !isPaused) {
+            recData.push({ time: Date.now() - recStart - totalPausedTime, midi: midi, type: 'on' });
+        }
     } else {
-        setTimeout(() => { g.gain.setTargetAtTime(0, audioCtx.currentTime, 0.1); setTimeout(() => osc.stop(), 200); }, dur * 1000);
+        // AUTO PLAY: For Library samples/AI motifs
+        setTimeout(() => {
+            g.gain.setTargetAtTime(0, audioCtx.currentTime, 0.1);
+            setTimeout(() => osc.stop(), 200);
+        }, dur * 1000);
         return { osc, g };
     }
 }
@@ -30,14 +85,16 @@ function playNote(midi, isAuto = false, dur = 1.5) {
 function stopNote(midi) {
     if (activeOscs.has(midi)) {
         const { osc, g } = activeOscs.get(midi);
-        g.gain.setTargetAtTime(0, audioCtx.currentTime, 0.1);
+        g.gain.setTargetAtTime(0, audioCtx.currentTime, 0.1); // Smooth Release
         setTimeout(() => osc.stop(), 200);
         activeOscs.delete(midi);
-        if (isRecording && !isPaused) recData.push({ time: Date.now() - recStart - totalPausedTime, midi: midi, type: 'off' });
+        if (isRecording && !isPaused) {
+            recData.push({ time: Date.now() - recStart - totalPausedTime, midi: midi, type: 'off' });
+        }
     }
 }
 
-// --- 2. KEYBOARD ---
+// --- 3. KEYBOARD UI ---
 const piano = document.getElementById('piano-keys');
 if (piano) {
     for (let i = 0; i < 64; i++) {
@@ -54,63 +111,30 @@ if (piano) {
     }
 }
 
-// --- 3. RECORDING ---
-const MAX_REC_TIME = 15; // Set limit to 15 seconds
+// --- 4. RECORDING ENGINE (15s LIMIT) ---
+const MAX_REC_TIME = 15;
 function handleRecording() {
-    const btn = document.getElementById('rec-btn');
-    const pBtn = document.getElementById('pause-btn');
-    const timerEl = document.getElementById('rec-timer');
-
+    const btn = document.getElementById('rec-btn'), pBtn = document.getElementById('pause-btn'), timerEl = document.getElementById('rec-timer');
     if (!isRecording) {
-        // START RECORDING
-        isRecording = true;
-        isPaused = false;
-        recStart = Date.now();
-        totalPausedTime = 0;
-        recData = [];
-
-        btn.innerText = "SAVE";
-        btn.style.background = "white";
-        btn.style.color = "black";
-        pBtn.style.display = "block";
-        timerEl.style.display = "block";
-        timerEl.classList.add('active');
-
-        let secondsLeft = MAX_REC_TIME;
-        timerEl.innerText = `00:${secondsLeft}`;
-
-        // Timer Loop
+        isRecording = true; isPaused = false; recStart = Date.now(); totalPausedTime = 0; recData = [];
+        btn.innerText = "SAVE"; pBtn.style.display = "block"; timerEl.style.display = "block";
+        let sec = MAX_REC_TIME;
+        timerEl.innerText = `00:${sec}`;
         recInterval = setInterval(() => {
             if (!isPaused) {
-                secondsLeft--;
-                timerEl.innerText = `00:${secondsLeft < 10 ? '0' : ''}${secondsLeft}`;
-
-                if (secondsLeft <= 0) {
-                    handleRecording(); // Trigger Auto-Stop and Save
-                }
+                sec--;
+                timerEl.innerText = `00:${sec < 10 ? '0' : ''}${sec}`;
+                if (sec <= 0) handleRecording(); // Auto-save
             }
         }, 1000);
-
     } else {
-        // STOP & SAVE
-        isRecording = false;
-        clearInterval(recInterval);
-
-        btn.innerText = "REC";
-        btn.style.background = "red";
-        btn.style.color = "white";
-        pBtn.style.display = "none";
-        timerEl.style.display = "none";
-        timerEl.classList.remove('active');
-
+        isRecording = false; clearInterval(recInterval);
+        btn.innerText = "REC"; pBtn.style.display = "none"; timerEl.style.display = "none";
         if (recData.length > 0) {
             const saved = JSON.parse(localStorage.getItem('sb_pro_v4') || '[]');
-            const newName = "Studio Mix " + (saved.length + 1);
-            saved.push({ id: Date.now(), name: newName, data: recData });
+            saved.push({ id: Date.now(), name: "User Mix " + (saved.length + 1), data: recData });
             localStorage.setItem('sb_pro_v4', JSON.stringify(saved));
-
             renderUser();
-            alert("Mix saved to User Tones.");
         }
     }
 }
@@ -122,198 +146,40 @@ function togglePauseRec() {
     document.getElementById('pause-btn').innerText = isPaused ? "RESUME" : "PAUSE";
 }
 
-// --- 4. PLAYBACK ---
-let activeAssetId = null; // New global variable at the top
+// --- 5. LIBRARY & USER PLAYBACK ---
+function renderLibrary(s = "", g = "All") {
+    const grid = document.getElementById('lib-grid'); if (!grid) return; grid.innerHTML = '';
+    toneLibrary.filter(t => (t.name.toLowerCase().includes(s.toLowerCase()) && (g === "All" || t.genre === g))).forEach(tone => {
+        const card = document.createElement('div'); card.className = 'tone-card';
+        card.style.borderTop = `5px solid ${tone.color}`;
+        const safeId = tone.name.replace(/\s+/g, '');
+        card.innerHTML = `<div class="card-top">
+            <div class="card-icon" style="background:${tone.color}"><i class="fa ${tone.icon}"></i></div>
+            <div><h4>${tone.name}</h4><small>${tone.genre}</small></div></div>
+            <div class="actions"><button class="tool-btn" onclick="shareMe('${tone.name}')"><i class="fa fa-share-nodes"></i></button>
+            <button class="play-btn" id="play-lib-${safeId}" onclick="playAsset(${JSON.stringify(tone.motif)}, ${tone.dur}, '${safeId}')"><i class="fa fa-play"></i></button></div>`;
+        grid.appendChild(card);
+    });
+}
 
-function playAsset(motif, dur, assetId) {
+function playAsset(motif, dur, id) {
     if (audioCtx.state === 'suspended') audioCtx.resume();
-    const btn = document.getElementById(`play-lib-${assetId}`);
-
-    if (activeAssetId === assetId) {
+    const btn = document.getElementById(`play-lib-${id}`);
+    if (activeAssetId === id) {
         activeAssetId = null; btn.innerHTML = '<i class="fa fa-play"></i>';
         sampleVoices.forEach(v => { try { v.g.gain.setTargetAtTime(0, audioCtx.currentTime, 0.1); v.osc.stop(); } catch (e) { } });
         return;
     }
-
-    activeAssetId = assetId;
-    btn.innerHTML = '<i class="fa fa-pause"></i>';
-
+    activeAssetId = id; btn.innerHTML = '<i class="fa fa-pause"></i>';
     motif.forEach((v, i) => {
         setTimeout(() => {
-            if (activeAssetId !== assetId) return;
-            const s = playNote(55 + v, true, 0.5);
-            sampleVoices.push(s);
+            if (activeAssetId !== id) return;
+            const s = playNote(55 + v, true, 0.5); sampleVoices.push(s);
+            const k = document.querySelector(`[data-midi="${55 + v}"]`);
+            if (k) { k.classList.add('active'); setTimeout(() => k.classList.remove('active'), 150); }
         }, i * 200);
     });
-
-    setTimeout(() => {
-        if (activeAssetId === assetId) { activeAssetId = null; btn.innerHTML = '<i class="fa fa-play"></i>'; }
-    }, motif.length * 200 + 500);
-}
-
-function playArchived(id) {
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-    const saved = JSON.parse(localStorage.getItem('sb_pro_v4') || '[]');
-    const mix = saved.find(m => m.id === id);
-    if (!mix) return;
-
-    const btn = document.getElementById(`play-user-${id}`);
-
-    // Toggle STOP if already playing
-    if (activePlaybackId === id) {
-        activePlaybackId = null;
-        btn.innerHTML = '<i class="fa fa-play"></i>';
-        return;
-    }
-
-    activePlaybackId = id;
-    btn.innerHTML = '<i class="fa fa-pause"></i>';
-    const voices = new Map();
-
-    mix.data.forEach(e => {
-        setTimeout(() => {
-            if (activePlaybackId !== id) return;
-            if (e.type === 'on') {
-                const s = playNote(e.midi, true, 1.5);
-                voices.set(e.midi, s);
-                document.querySelector(`[data-midi="${e.midi}"]`)?.classList.add('active');
-            } else {
-                const s = voices.get(e.midi);
-                if (s) {
-                    s.g.gain.setTargetAtTime(0, audioCtx.currentTime, 0.1);
-                    voices.delete(e.midi);
-                }
-                document.querySelector(`[data-midi="${e.midi}"]`)?.classList.remove('active');
-            }
-        }, e.time);
-    });
-
-    // --- NEW: THE AUTO-RESET LOGIC ---
-    // Find the timestamp of the very last event in this recording
-    const lastEventTime = mix.data.length > 0 ? mix.data[mix.data.length - 1].time : 0;
-
-    setTimeout(() => {
-        // Only reset if this specific track is still the one "active"
-        if (activePlaybackId === id) {
-            activePlaybackId = null;
-            btn.innerHTML = '<i class="fa fa-play"></i>';
-            console.log("Playback finished, UI reset.");
-        }
-    }, lastEventTime + 500); // Reset 0.5s after the last note
-}
-
-// --- 5. GEMINI AI ---
-// --- 6. GEMINI 3 API INTEGRATION (UPDATED FOR YOUR KEY) ---
-
-async function callGemini(prompt) {
-    if (!GEMINI_API_KEY) {
-        alert("Add API Key in Settings!");
-        return null;
-    }
-
-    // MATCHED FROM YOUR LIST: gemini-flash-latest
-    const model = "gemini-flash-latest";
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
-
-    try {
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            if (response.status === 429) return "Error: AI is busy. Wait 30s.";
-            return "Error: " + (data.error ? data.error.message : "API Issue");
-        }
-
-        return data.candidates[0].content.parts[0].text;
-    } catch (e) {
-        return "Error: Connection failed.";
-    }
-}
-
-async function analyzeWithAI(id, midiArray) {
-    const report = document.getElementById(`ai-report-${id}`);
-    const titleEl = document.querySelector(`#card-title-${id}`); // We'll add this ID in renderUser
-
-    report.innerText = "AI is vibe-checking...";
-    const names = midiArray.map(m => noteNames[m % 12]).join(', ');
-
-    // Updated Prompt for Trendy Name + Analysis
-    const prompt = `Act as a trendy music curator. I played these notes: [${names}]. 
-    Give me a 2-word trendy name (like 'Neon Pulse' or 'Midnight Lo-fi') and a 10-word mood analysis. 
-    Format your response exactly like this: Name: [Your Name] | Analysis: [Your Analysis]`;
-
-    const res = await callGemini(prompt);
-    if (res && res.includes('|')) {
-        const [newName, analysis] = res.split('|');
-        titleEl.innerText = newName.replace('Name:', '').trim();
-        report.innerText = analysis.replace('Analysis:', '').trim();
-    }
-}
-
-async function generateAITone() {
-    const vibe = document.getElementById('vibe-input').value;
-    if (!vibe) return alert("Enter a vibe!");
-
-    document.getElementById('note-display').innerText = "AI composing...";
-    const res = await callGemini(`Return ONLY a JSON array of 5 MIDI offsets for the mood: "${vibe}". No markdown, no text. e.g. [0, 4, 7, 10, 12]`);
-
-    if (!res || res.includes("Error")) {
-        alert(res || "AI error. Try again!");
-        return;
-    }
-
-    try {
-        // SMART PARSER: This finds the [ ] even if Gemini adds extra text
-        const jsonMatch = res.match(/\[.*\]/);
-        if (jsonMatch) {
-            const motif = JSON.parse(jsonMatch[0]);
-            playAsset(motif, 3);
-            document.getElementById('note-display').innerText = "AI Vibe: " + vibe;
-        } else {
-            throw new Error("No array found");
-        }
-    } catch (e) {
-        console.error("AI raw response:", res);
-        alert("AI sent a message instead of notes. Try a simpler vibe!");
-    }
-}
-
-async function analyzeWithAI(id, midiArray) {
-    const report = document.getElementById(`ai-report-${id}`); report.innerText = "AI thinking...";
-    const names = midiArray.map(m => noteNames[m % 12]).join(', ');
-    const res = await callGemini(`Producer mode. Notes: [${names}]. In 10 words, chord name and mood.`);
-    if (res) report.innerText = "AI: " + res;
-}
-
-async function generateAITone() {
-    const vibe = document.getElementById('vibe-input').value;
-    if (!vibe) return;
-    const res = await callGemini(`Return ONLY a JSON array of 5 MIDI offsets for: "${vibe}". No markdown. e.g. [0,3,7,10,12]`);
-    try { const motif = JSON.parse(res.replace(/```json|```/g, "").trim()); playAsset(motif, 3); } catch (e) { alert("AI error. Try another vibe!"); }
-}
-
-// --- 6. UTILS ---
-function renderLibrary(s = "", g = "All") {
-    const grid = document.getElementById('lib-grid'); if (!grid) return; grid.innerHTML = '';
-    toneLibrary.filter(t => t.name.toLowerCase().includes(s.toLowerCase()) && (g === "All" || t.genre === g)).forEach(tone => {
-        const card = document.createElement('div'); card.className = 'tone-card';
-        card.innerHTML = `
-    <div class="card-top" style="border-bottom: 3px solid ${tone.color}">
-        <div class="card-icon" style="background:${tone.color}"><i class="fa ${tone.icon}"></i></div>
-        <div><h4>${tone.name}</h4><small>${tone.genre}</small></div>
-    </div>
-    <div class="actions">
-        <button class="tool-btn" onclick="shareMe('${tone.name}')"><i class="fa fa-share-nodes"></i></button>
-        <button class="play-btn" id="play-lib-${tone.name.replace(/\s+/g, '')}" onclick="playAsset(${JSON.stringify(tone.motif)}, ${tone.dur}, '${tone.name.replace(/\s+/g, '')}')">
-            <i class="fa fa-play"></i>
-        </button>
-    </div>`;
-    });
+    setTimeout(() => { if (activeAssetId === id) { activeAssetId = null; btn.innerHTML = '<i class="fa fa-play"></i>'; } }, motif.length * 200 + 500);
 }
 
 function renderUser() {
@@ -323,36 +189,77 @@ function renderUser() {
     saved.forEach(mix => {
         const midiList = [...new Set(mix.data.filter(e => e.type === 'on').map(e => e.midi))];
         const card = document.createElement('div'); card.className = 'tone-card';
-        card.innerHTML = `
-            <div class="card-top">
-                <div class="card-icon" style="background:#333"><i class="fa fa-microphone"></i></div>
-                <div>
-                    <h4>${mix.name}</h4>
-                    <small id="ai-report-${mix.id}" style="color:var(--studio-blue); font-style:italic; font-size:11px;">AI: No analysis yet.</small>
-                </div>
-            </div>
-            <div class="actions">
-                <button class="tool-btn" onclick="delUser(${mix.id})"><i class="fa fa-trash"></i></button>
-                
-                <!-- THE RESTORED AI BUTTON -->
-                <button class="tool-btn" style="color:var(--studio-blue)" onclick="analyzeWithAI(${mix.id}, [${midiList}])">
-                    <i class="fa fa-robot"></i> AI
-                </button>
-
-                <button class="play-btn" id="play-user-${mix.id}" onclick="playArchived(${mix.id})">
-                    <i class="fa fa-play"></i>
-                </button>
-            </div>`;
+        card.innerHTML = `<div class="card-top"><div class="card-icon" style="background:#333"><i class="fa fa-microphone"></i></div>
+            <div><h4 id="card-title-${mix.id}">${mix.name}</h4><small id="ai-report-${mix.id}" style="color:var(--studio-blue); font-style:italic; font-size:11px;">AI: No analysis yet.</small></div></div>
+            <div class="actions"><button class="tool-btn" onclick="delUser(${mix.id})"><i class="fa fa-trash"></i></button>
+            <button class="tool-btn" style="color:var(--studio-blue)" onclick="analyzeWithAI(${mix.id}, [${midiList}])"><i class="fa fa-wand-magic-sparkles"></i> AI</button>
+            <button class="play-btn" id="play-user-${mix.id}" onclick="playArchived(${mix.id})"><i class="fa fa-play"></i></button></div>`;
         grid.appendChild(card);
     });
 }
 
-function delUser(id) {
-    let s = JSON.parse(localStorage.getItem('sb_pro_v4') || '[]');
-    localStorage.setItem('sb_pro_v4', JSON.stringify(s.filter(m => m.id !== id)));
-    renderUser();
+function playArchived(id) {
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const saved = JSON.parse(localStorage.getItem('sb_pro_v4') || '[]');
+    const mix = saved.find(m => m.id === id); if (!mix) return;
+    const btn = document.getElementById(`play-user-${id}`);
+    if (activePlaybackId === id) { activePlaybackId = null; btn.innerHTML = '<i class="fa fa-play"></i>'; return; }
+    activePlaybackId = id; btn.innerHTML = '<i class="fa fa-pause"></i>';
+    const voices = new Map();
+    mix.data.forEach(e => {
+        setTimeout(() => {
+            if (activePlaybackId !== id) return;
+            if (e.type === 'on') {
+                const s = playNote(e.midi, true, 1.5); voices.set(e.midi, s);
+                document.querySelector(`[data-midi="${e.midi}"]`)?.classList.add('active');
+            } else {
+                const s = voices.get(e.midi);
+                if (s) { s.g.gain.setTargetAtTime(0, audioCtx.currentTime, 0.1); voices.delete(e.midi); }
+                document.querySelector(`[data-midi="${e.midi}"]`)?.classList.remove('active');
+            }
+        }, e.time);
+    });
+    const lastTime = mix.data.length > 0 ? mix.data[mix.data.length - 1].time : 0;
+    setTimeout(() => { if (activePlaybackId === id) { activePlaybackId = null; btn.innerHTML = '<i class="fa fa-play"></i>'; } }, lastTime + 500);
 }
 
+// --- 6. GEMINI 3 API ---
+async function callGemini(prompt) {
+    if (!GEMINI_API_KEY) { alert("Click Cog to set API Key!"); return null; }
+    const model = "gemini-flash-latest";
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+    try {
+        const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }) });
+        const data = await response.json();
+        if (!response.ok) return "Error: " + data.error.message;
+        return data.candidates[0].content.parts[0].text;
+    } catch (e) { return "Connection failed."; }
+}
+
+async function analyzeWithAI(id, midiArray) {
+    const report = document.getElementById(`ai-report-${id}`), titleEl = document.getElementById(`card-title-${id}`);
+    report.innerText = "AI vibe-checking...";
+    const names = midiArray.map(m => noteNames[m % 12]).join(', ');
+    const prompt = `Trendy producer mode. Notes: [${names}]. Give a 2-word trendy name and 10-word mood. Format Name: [Name] | Analysis: [Analysis]`;
+    const res = await callGemini(prompt);
+    if (res && res.includes('|')) {
+        const [n, a] = res.split('|');
+        titleEl.innerText = n.replace('Name:', '').trim();
+        report.innerText = a.replace('Analysis:', '').trim();
+    }
+}
+
+async function generateAITone() {
+    const vibe = document.getElementById('vibe-input').value; if (!vibe) return;
+    const res = await callGemini(`Return ONLY a JSON array of 5 MIDI offsets for: "${vibe}". No markdown. e.g. [0,3,7,10,12]`);
+    try {
+        const cleanJson = res.match(/\[.*\]/)[0];
+        const motif = JSON.parse(cleanJson);
+        playAsset(motif, 3, "ai_gen");
+    } catch (e) { alert("AI error. Try another vibe!"); }
+}
+
+// --- 7. NAVIGATION & SEARCH ---
 function shareMe(n) {
     const url = window.location.href;
     if (navigator.share) navigator.share({ title: 'Aura Studio', text: `Check out my tone: ${n}`, url: url });
@@ -362,21 +269,35 @@ function shareMe(n) {
 function navTo(e, id) {
     document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById(id).classList.add('active');
-    if (e) e.currentTarget.classList.add('active');
+    document.getElementById(id).classList.add('active'); if (e) e.currentTarget.classList.add('active');
+}
+
+function runGlobalSearch() {
+    const q = document.getElementById('search-box').value;
+    if (q.length > 0) { navTo(null, 'pane-library'); renderLibrary(q); }
+}
+
+function filterByGenre(g) {
+    document.querySelectorAll('.genre-chip').forEach(c => c.classList.remove('active'));
+    event.currentTarget.classList.add('active'); renderLibrary("", g);
 }
 
 function openSettings() {
     const key = prompt("Enter Gemini API Key:", GEMINI_API_KEY);
-    if (key) { GEMINI_API_KEY = key; localStorage.setItem('gemini_key', key); }
+    if (key !== null) { GEMINI_API_KEY = key; localStorage.setItem('gemini_key', key); }
 }
 
-function runGlobalSearch() { const q = document.getElementById('search-box').value; if (q.length > 0) navTo(null, 'pane-library'); renderLibrary(q); }
-function filterByGenre(g) { document.querySelectorAll('.genre-chip').forEach(c => c.classList.remove('active')); event.currentTarget.classList.add('active'); renderLibrary("", g); }
+function delUser(id) {
+    let saved = JSON.parse(localStorage.getItem('sb_pro_v4') || '[]');
+    localStorage.setItem('sb_pro_v4', JSON.stringify(saved.filter(m => m.id !== id)));
+    renderUser();
+}
 
 function init() {
     const board = document.getElementById('manual-board');
-    if (board) board.innerHTML = manualData.map(m => `<div class="sticky-note ${m.color}" onclick="this.classList.toggle('expanded')"><div class="pin"></div><h3 class="note-heading">${m.head}</h3><p class="note-content">${m.body}</p></div>`).join('');
+    if (board && typeof manualData !== 'undefined') {
+        board.innerHTML = manualData.map(m => `<div class="sticky-note ${m.color}" onclick="this.classList.toggle('expanded')"><div class="pin"></div><h3 class="note-heading">${m.head}</h3><p class="note-content">${m.body}</p></div>`).join('');
+    }
     renderLibrary(); renderUser();
 }
 window.onload = init;
