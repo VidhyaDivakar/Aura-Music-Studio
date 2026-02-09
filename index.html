@@ -4,12 +4,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aura Studio Pro</title>
+    <title>Aura Studio Pro - AI Powered</title>
     <link rel="icon" type="image/svg+xml"
         href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2280%22 fill=%22%2300A3FF%22>🎸</text></svg>">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Indie+Flower&family=Inter:wght@400;900&family=Outfit:wght@700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;900&family=Outfit:wght@700&family=Indie+Flower&display=swap');
 
         :root {
             --studio-blue: #00A3FF;
@@ -85,6 +85,7 @@
             font-family: monospace;
             margin-right: 10px;
             display: none;
+            font-weight: bold;
         }
 
         #settings-btn {
@@ -140,9 +141,9 @@
         .welcome-box {
             background: rgba(0, 163, 255, 0.05);
             border: 1px dashed var(--studio-blue);
-            padding: 20px;
+            padding: 25px;
             border-radius: 12px;
-            margin-bottom: 20px;
+            margin-bottom: 25px;
             text-align: center;
         }
 
@@ -153,7 +154,6 @@
             border: 1px solid var(--studio-blue);
             text-align: center;
             margin-bottom: 20px;
-            position: relative;
         }
 
         #note-display {
@@ -213,7 +213,7 @@
             background: var(--studio-blue) !important;
             color: white !important;
             transform: translateY(4px);
-            box-shadow: 0 0 15px var(--studio-blue);
+            box-shadow: 0 0 20px var(--studio-blue);
         }
 
         .key-hint {
@@ -225,9 +225,37 @@
             opacity: 0.5;
         }
 
-        .key.black .key-hint {
-            color: white;
-            top: 5px;
+        /* NEON GLOW FOR AI MAGIC */
+        .fa-wand-magic-sparkles {
+            color: var(--studio-blue);
+            filter: drop-shadow(0 0 8px var(--studio-blue));
+        }
+
+        /* LIBRARY ELEMENTS */
+        .ribbon {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 25px;
+            overflow-x: auto;
+            padding: 10px;
+            white-space: nowrap;
+        }
+
+        .genre-chip {
+            padding: 8px 18px;
+            background: #161B22;
+            border-radius: 20px;
+            font-size: 11px;
+            cursor: pointer;
+            border: 1px solid #333;
+            color: var(--text-dim);
+        }
+
+        .genre-chip.active {
+            background: var(--studio-blue);
+            color: black;
+            font-weight: bold;
         }
 
         .grid {
@@ -241,7 +269,7 @@
             border: 1px solid #222;
             border-radius: 15px;
             padding: 20px;
-            border-top: 4px solid #333;
+            position: relative;
         }
 
         .actions {
@@ -261,6 +289,9 @@
             height: 40px;
             border-radius: 50%;
             cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .tool-btn {
@@ -271,24 +302,23 @@
             font-size: 16px;
         }
 
+        /* STICKY NOTES */
         .sticky-board {
             display: flex;
             flex-wrap: wrap;
             gap: 30px;
             justify-content: center;
-            padding: 40px 0;
+            padding: 20px 0;
         }
 
         .sticky-note {
-            width: 260px;
-            min-height: 180px;
-            padding: 30px 20px 20px;
+            width: 280px;
+            min-height: 200px;
+            padding: 30px 20px;
             position: relative;
             cursor: pointer;
             box-shadow: 10px 10px 20px rgba(0, 0, 0, 0.5);
             transition: 0.4s;
-            overflow: hidden;
-            border-bottom-right-radius: 40px 5px;
         }
 
         .sticky-note.green {
@@ -361,8 +391,8 @@
             <h2 style="margin:0">Aura <span style="color:white">Studio</span></h2>
         </div>
         <div class="search-box"><i class="fa fa-search"></i><input type="text" id="search-box"
-                placeholder="Search library..." onkeyup="runGlobalSearch()"></div>
-        <div class="header-actions">
+                placeholder="Global AI Search..." onkeyup="runGlobalSearch()"></div>
+        <div style="display:flex; align-items:center;">
             <span id="rec-timer">00:00</span>
             <button id="rec-btn" onclick="handleRecording()">REC</button>
             <button id="settings-btn" onclick="openSettings()"><i class="fa fa-cog"></i></button>
@@ -371,18 +401,20 @@
 
     <nav id="main-nav">
         <button class="tab-btn active" onclick="navTo(event, 'pane-studio')">Studio</button>
-        <button class="tab-btn" onclick="navTo(event, 'pane-library')">Library</button>
-        <button class="tab-btn" onclick="navTo(event, 'pane-ai')">AI Compose</button>
-        <button class="tab-btn" onclick="navTo(event, 'pane-user')">User Tones</button>
+        <button class="tab-btn" onclick="navTo(event, 'pane-user')">AI Master Tape</button>
+        <button class="tab-btn" onclick="navTo(event, 'pane-library')">Tone Library</button>
+        <button class="tab-btn" onclick="navTo(event, 'pane-ai')">AI Composer</button>
         <button class="tab-btn" onclick="navTo(event, 'pane-manual')">About</button>
     </nav>
 
     <div class="viewport">
+        <!-- STUDIO -->
         <div id="pane-studio" class="tab-pane active">
             <div class="welcome-box">
-                <h3 style="font-family:'Outfit'">Design your own signature sound.</h3>
-                <p>Welcome to Aura Studio. Use the 64-key keyboard or your laptop keys to compose. Click
-                    <strong>REC</strong> to capture your motif.</p>
+                <h3 style="font-family:'Outfit'">Aura Intelligent Studio Engine</h3>
+                <p>Play with 64-key polyphony. Aura captures musical 'happy accidents'. Click <strong>REC</strong> to
+                    archive a performance and use the <strong>AI Master Tape</strong> to let Gemini 1.5 Flash curate
+                    your sound.</p>
             </div>
             <div class="monitor">
                 <div id="note-display">Ready</div>
@@ -391,23 +423,42 @@
                 <div class="keys" id="piano-keys"></div>
             </div>
         </div>
+
+        <!-- AI MASTER TAPE (User Tones) -->
+        <div id="pane-user" class="tab-pane">
+            <h3 style="color:var(--studio-blue); font-family:'Outfit'">AI MASTER ARCHIVE</h3>
+            <div class="grid" id="user-grid"></div>
+        </div>
+
+        <!-- LIBRARY -->
         <div id="pane-library" class="tab-pane">
+            <div class="ribbon">
+                <div class="genre-chip active" onclick="filterByGenre('All')">All Tones</div>
+                <div class="genre-chip" onclick="filterByGenre('Gaming Classics')">Gaming</div>
+                <div class="genre-chip" onclick="filterByGenre('Viral Pop Snippets')">Viral Pop</div>
+                <div class="genre-chip" onclick="filterByGenre('ASMR & Nature')">ASMR</div>
+                <div class="genre-chip" onclick="filterByGenre('Minimalist UI')">UI & Apps</div>
+            </div>
             <div class="grid" id="lib-grid"></div>
         </div>
+
+        <!-- AI COMPOSE -->
         <div id="pane-ai" class="tab-pane">
             <div
                 style="background: rgba(124, 77, 255, 0.1); border: 1px solid var(--ai-purple); padding: 40px; border-radius: 15px; text-align: center;">
-                <h2 style="color:var(--ai-purple); font-family:'Outfit'">AI Vibe-to-Motif</h2>
-                <input type="text" id="vibe-input" placeholder="e.g. Spooky Ghost..."
+                <h2 style="color:var(--ai-purple); font-family:'Outfit'"><i class="fa fa-magic"></i> Vibe-to-Motif
+                    Generator</h2>
+                <p style="color:#888; margin-bottom: 20px;">Gemini 1.5 Flash translates language into MIDI. Try
+                    "Underwater Forest" or "Fast Action Chase".</p>
+                <input type="text" id="vibe-input" placeholder="Enter a vibe..."
                     style="width: 60%; padding: 15px; background: #000; border: 1px solid #333; color: white; border-radius: 10px; margin-bottom: 20px;">
                 <br><button onclick="generateAITone()"
                     style="background:var(--ai-purple); color:white; border:none; padding:15px 30px; border-radius:10px; font-weight:bold; cursor:pointer;">GENERATE
-                    & PLAY</button>
+                    & PERFORM</button>
             </div>
         </div>
-        <div id="pane-user" class="tab-pane">
-            <div class="grid" id="user-grid"></div>
-        </div>
+
+        <!-- ABOUT -->
         <div id="pane-manual" class="tab-pane">
             <div class="sticky-board" id="manual-board"></div>
         </div>
