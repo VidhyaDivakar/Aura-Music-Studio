@@ -7,7 +7,8 @@
     <title>Aura Music</title>
     <link rel="icon" type="image/svg+xml"
         href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2280%22 fill=%22%2300A3FF%22>🎸</text></svg>">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;500;800&family=Outfit:wght@400;700&family=Indie+Flower&display=swap">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Indie+Flower&family=Inter:wght@400;900&display=swap');
 
@@ -30,6 +31,29 @@
             overflow: hidden;
         }
 
+        /* New Headings Font */
+        h1,
+        h2,
+        h3,
+        .note-heading {
+            font-family: 'Outfit', sans-serif;
+        }
+
+        /* Sticky Note Manual Updates */
+        .note-content {
+            font-family: 'Inter', sans-serif;
+            /* Changed from handwriting to Inter for better readability */
+            font-size: 14px;
+            line-height: 1.5;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .sticky-note.expanded .note-content {
+            font-family: 'Inter', sans-serif;
+            font-size: 16px;
+        }
+
         header {
             background: #000;
             padding: 15px 40px;
@@ -38,6 +62,23 @@
             justify-content: space-between;
             border-bottom: 2px solid var(--studio-blue);
             z-index: 1000;
+        }
+
+        .key-hint {
+            position: absolute;
+            top: 10px;
+            width: 100%;
+            text-align: center;
+            font-size: 10px;
+            font-weight: 800;
+            color: var(--studio-blue);
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .key.black .key-hint {
+            color: #fff;
+            top: 5px;
         }
 
         .brand {
@@ -459,7 +500,7 @@
         <button class="tab-btn" onclick="navTo(event, 'pane-library')">Library</button>
         <button class="tab-btn" onclick="navTo(event, 'pane-ai')">AI Compose</button>
         <button class="tab-btn" onclick="navTo(event, 'pane-user')">User Tones</button>
-        <button class="tab-btn" onclick="navTo(event, 'pane-manual')">Manual</button>
+        <button class="tab-btn" onclick="navTo(event, 'pane-manual')">About</button>
     </nav>
 
     <div class="viewport">
