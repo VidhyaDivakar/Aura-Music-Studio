@@ -140,7 +140,9 @@ async function analyzeWithAI(id, midiArray) {
         const [n, a] = res.split('|');
         const trendyName = n.replace('Name:', '').trim();
         const analysis = a.replace('Analysis:', '').trim();
-
+        // Inside analyzeWithAI after getting TrendyName
+        document.getElementById('status-sub').innerText = "Sonic Identity: " + trendyName;
+        document.getElementById('status-sub').style.color = "var(--ui-amber)";
         // Update Card
         titleEl.innerText = trendyName;
         report.innerText = analysis;
@@ -205,8 +207,7 @@ function renderAIAssets() {
                 </div>
             </div>
             <div class="actions">
-                // Change the share button line to this:
-<button class="tool-btn" onclick="shareMe('${asset.name}', 'AI-composed soundscape')">
+                <button class="tool-btn" onclick="shareMe('${asset.name}', 'AI-composed soundscape')">
     <i class="fa fa-share-nodes"></i>
 </button>
                 <button class="play-btn" id="play-ai-${asset.id}" onclick="playAsset(${JSON.stringify(asset.motif)}, 10, 'ai-${asset.id}')">
@@ -234,8 +235,7 @@ function renderLibrary(s = "", g = "All") {
         card.style.borderTop = `5px solid ${tone.color}`;
         card.innerHTML = `<div class="card-top"><h4>${tone.name}</h4><small>${tone.genre}</small></div>
             <div class="actions"><button class="tool-btn" onclick="shareMe('${tone.name}', 'preset tone')">
-    <i class="fa fa-share-nodes"></i>
-</button><i class="fa fa-share-nodes"></i></button>
+    <i class="fa fa-share-nodes"></i></button>
             <button class="play-btn" id="play-lib-${tone.name.replace(/\s+/g, '')}" onclick="playAsset(${JSON.stringify(tone.motif)}, ${tone.dur}, '${tone.name.replace(/\s+/g, '')}')"><i class="fa fa-play"></i></button></div>`;
         grid.appendChild(card);
     });
@@ -299,8 +299,7 @@ function renderUser() {
             <div class="actions"><button class="tool-btn" onclick="delUser(${mix.id})"><i class="fa fa-trash"></i></button>
             <button class="tool-btn" onclick="analyzeWithAI(${mix.id}, [${midiList}])"><i class="fa fa-wand-magic-sparkles"></i> AI</button>
             <button class="play-btn" id="play-user-${mix.id}" onclick="playArchived(${mix.id})"><i class="fa fa-play"></i></button>
-            // Change the share button line to this:
-<button class="tool-btn" onclick="shareMe('${mix.name}', 'personal recording')">
+            <button class="tool-btn" onclick="shareMe('${mix.name}', 'personal recording')">
     <i class="fa fa-share-nodes"></i>
 </button></div>`;
         grid.appendChild(card);
