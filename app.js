@@ -289,18 +289,6 @@ function playAsset(motif, dur, id) {
         }
     }, motif.length * 600 + 500);
 }
-/**
- * 3. SHARE LOGIC (Universal)
- */
-function shareMe(name) {
-    const text = `Check out this unique "${name}" sound asset I created on Aura Studio Pro!`;
-    if (navigator.share) {
-        navigator.share({ title: 'Aura Studio', text: text, url: window.location.href });
-    } else {
-        const fallback = `https://api.whatsapp.com/send?text=${encodeURIComponent(text + " " + window.location.href)}`;
-        window.open(fallback, '_blank');
-    }
-}
 
 function renderUser() {
     const grid = document.getElementById('user-grid'); if (!grid) return;
