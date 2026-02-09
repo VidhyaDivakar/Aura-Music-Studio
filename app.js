@@ -244,8 +244,8 @@ function shareMe(toneName) {
         alert("Link copied to clipboard! You can now paste it in your chat.");
     }
 }
- * 2. PLAYBACK ENGINE: Functional Play / Pause / Stop
-    */
+/* 2. PLAYBACK ENGINE: Functional Play / Pause / Stop
+   */
 function playAsset(motif, dur, id) {
     if (audioCtx.state === 'suspended') audioCtx.resume();
 
