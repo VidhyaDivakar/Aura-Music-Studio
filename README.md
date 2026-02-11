@@ -1,3 +1,4 @@
+# Aura Music Studio
 The Intelligent Sound Discovery Engine & Generative AI Composer
 Aura Music Studio is a high-fidelity, multimodal music asset platform that transforms a 64-key polyphonic studio keyboard into a powerful sound discovery engine. By leveraging the Gemini 1.5 Flash API, Aura bridges the gap between raw frequency math and generative intelligence, acting as a resident AI producer for modern creators.
 # Key Features
